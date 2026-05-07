@@ -1,5 +1,5 @@
 name: Build Python 32-bit ONLY (From Code)
-on: [push, workflow_dispatch]
+on:[push, workflow_dispatch]
 
 jobs:
   build-32bit:
@@ -11,10 +11,10 @@ jobs:
         sudo apt update
         sudo apt install -y build-essential pkg-config curl git unzip
 
-    - name: Checkout Official CPython Source Code
+    - name: Checkout Official CPython Source Code (STABLE 3.14)
       run: |
-        # Python ka Original Source Code download ho raha hai
-        git clone --depth 1 --branch main https://github.com/python/cpython.git
+        # 🔥 MAIN FIX: 'main' ki jagah hum '3.14' stable branch use kar rahe hain
+        git clone --depth 1 --branch 3.14 https://github.com/python/cpython.git
 
     - name: Compile Python ONLY for 32-bit (arm-linux-androideabi)
       run: |
@@ -24,19 +24,19 @@ jobs:
         # 🔥 16KB Page Size Alignment (Android 15+ ke liye zaruri update) 🔥
         export LDFLAGS="-z max-page-size=16384"
         
-        # 🔥 Step 1: PC/Host Python ko configure karna
+        # Step 1: PC/Host Python ko configure karna
         echo "🔥 Step 1: Configuring Host Python 🔥"
         python3 Platforms/Android configure-build
         
-        # 🔥 Step 2: PC/Host Python ko build karna
+        # Step 2: PC/Host Python ko build karna
         echo "🔥 Step 2: Building Host Python 🔥"
         python3 Platforms/Android make-build
         
-        # 🔥 Step 3: Android 32-bit ko configure karna (With 16KB update)
+        # Step 3: Android 32-bit ko configure karna (With 16KB update)
         echo "🔥 Step 3: Configuring Android 32-bit Python 🔥"
         python3 Platforms/Android configure-host arm-linux-androideabi -- LDFLAGS="$LDFLAGS"
         
-        # 🔥 Step 4: Android 32-bit ko compile karna
+        # Step 4: Android 32-bit ko compile karna
         echo "🔥 Step 4: Compiling Android 32-bit Python 🔥"
         python3 Platforms/Android make-host arm-linux-androideabi
 
