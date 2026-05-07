@@ -1,0 +1,47 @@
+name: Build Official Python for Android
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Yahan humne dono (32-bit aur 64-bit) set kar diye hain
+    strategy:
+      matrix:
+        arch:[armeabi-v7a, arm64-v8a]
+
+    steps:
+    - name: Setup System Dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential pkg-config curl git unzip
+
+    - name: Checkout Official CPython Source
+      run: |
+        # Yahan hum official Python ka source code (main branch / 3.14+) download kar rahe hain
+        git clone --depth 1 --branch main https://github.com/python/cpython.git
+
+    - name: Compile Python for ${{ matrix.arch }}
+      run: |
+        cd cpython
+        # Ubuntu runner mein Android SDK pehle se install hota hai, hum uska path de rahe hain
+        export ANDROID_HOME=$ANDROID_HOME
+        
+        echo "🔥 Building Python for ${{ matrix.arch }} 🔥"
+        # Yeh Python ka apna official command hai Android ke liye compile karne ka
+        python3 Platforms/Android build ${{ matrix.arch }}
+
+    - name: Package Embeddable Zip (Like Official Website)
+      run: |
+        cd cpython
+        export ANDROID_HOME=$ANDROID_HOME
+        
+        echo "📦 Packaging ${{ matrix.arch }} 📦"
+        # Yeh command bilkul official website jaisi embeddable tar/zip banayegi
+        python3 Platforms/Android package ${{ matrix.arch }}
+
+    - name: Upload Python Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Official-Python-Android-${{ matrix.arch }}
+        # Yahan hum wo folder utha rahe hain jahan embeddable file save hoti hai
+        path: cpython/cross-build/${{ matrix.arch }}/dist/
