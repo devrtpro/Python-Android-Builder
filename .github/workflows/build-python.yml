@@ -24,19 +24,21 @@ jobs:
         # 🔥 16KB Page Size Alignment (Android 15+ ke liye zaruri update) 🔥
         export LDFLAGS="-z max-page-size=16384"
         
-        # 🔥 Step 1 & 2: PC/Host Version banana (Jo error aa raha tha usko fix karne ke liye)
+        # 🔥 Step 1: PC/Host Python ko configure karna
         echo "🔥 Step 1: Configuring Host Python 🔥"
-        python3 Platforms/Android configure build
+        python3 Platforms/Android configure-build
         
+        # 🔥 Step 2: PC/Host Python ko build karna
         echo "🔥 Step 2: Building Host Python 🔥"
-        python3 Platforms/Android build build
+        python3 Platforms/Android make-build
         
-        # 🔥 Step 3 & 4: Android 32-bit Version banana (Main Kaam)
+        # 🔥 Step 3: Android 32-bit ko configure karna (With 16KB update)
         echo "🔥 Step 3: Configuring Android 32-bit Python 🔥"
-        python3 Platforms/Android configure arm-linux-androideabi -- LDFLAGS="$LDFLAGS"
+        python3 Platforms/Android configure-host arm-linux-androideabi -- LDFLAGS="$LDFLAGS"
         
+        # 🔥 Step 4: Android 32-bit ko compile karna
         echo "🔥 Step 4: Compiling Android 32-bit Python 🔥"
-        python3 Platforms/Android build arm-linux-androideabi
+        python3 Platforms/Android make-host arm-linux-androideabi
 
     - name: Package 32-bit Embeddable Zip
       run: |
