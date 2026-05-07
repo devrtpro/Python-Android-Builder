@@ -1,5 +1,5 @@
 name: Build Python 32-bit ONLY (From Code)
-on:[push, workflow_dispatch]
+on: [push, workflow_dispatch]
 
 jobs:
   build-32bit:
