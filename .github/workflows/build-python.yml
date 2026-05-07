@@ -21,20 +21,29 @@ jobs:
         cd cpython
         export ANDROID_HOME=$ANDROID_HOME
         
-        # 🔥 16KB Page Size Alignment (Android 15+ ke liye) 🔥
+        # 🔥 16KB Page Size Alignment (Android 15+ ke liye zaruri update) 🔥
         export LDFLAGS="-z max-page-size=16384"
         
-        echo "🔥 Compiling Python from Source Code for 32-bit 🔥"
+        # 🔥 Step 1 & 2: PC/Host Version banana (Jo error aa raha tha usko fix karne ke liye)
+        echo "🔥 Step 1: Configuring Host Python 🔥"
+        python3 Platforms/Android configure build
         
-        # Yahan humne naam change karke Python ka official 32-bit naam (arm-linux-androideabi) daal diya hai
-        python3 Platforms/Android build arm-linux-androideabi -- LDFLAGS="$LDFLAGS"
+        echo "🔥 Step 2: Building Host Python 🔥"
+        python3 Platforms/Android build build
+        
+        # 🔥 Step 3 & 4: Android 32-bit Version banana (Main Kaam)
+        echo "🔥 Step 3: Configuring Android 32-bit Python 🔥"
+        python3 Platforms/Android configure arm-linux-androideabi -- LDFLAGS="$LDFLAGS"
+        
+        echo "🔥 Step 4: Compiling Android 32-bit Python 🔥"
+        python3 Platforms/Android build arm-linux-androideabi
 
     - name: Package 32-bit Embeddable Zip
       run: |
         cd cpython
         export ANDROID_HOME=$ANDROID_HOME
         
-        echo "📦 Packaging 32-bit Zip 📦"
+        echo "📦 Packaging 32-bit Zip (Official Way) 📦"
         python3 Platforms/Android package arm-linux-androideabi
 
     - name: Upload 32-bit Python Artifact
