@@ -13,21 +13,21 @@ jobs:
 
     - name: Checkout Official CPython Source Code
       run: |
-        # Yahan hum Python ka Original Source Code (.c aur .h files) download kar rahe hain
+        # Python ka Original Source Code download ho raha hai
         git clone --depth 1 --branch main https://github.com/python/cpython.git
 
-    - name: Compile Python ONLY for 32-bit (armeabi-v7a)
+    - name: Compile Python ONLY for 32-bit (arm-linux-androideabi)
       run: |
         cd cpython
         export ANDROID_HOME=$ANDROID_HOME
         
-        # 🔥 16KB Page Size Alignment (Android 15+ aur Play Store ke naye rules ke liye) 🔥
+        # 🔥 16KB Page Size Alignment (Android 15+ ke liye) 🔥
         export LDFLAGS="-z max-page-size=16384"
         
         echo "🔥 Compiling Python from Source Code for 32-bit 🔥"
         
-        # Yeh command direct C source code ko 32-bit NDK ke zariye compile karegi
-        python3 Platforms/Android build armeabi-v7a -- LDFLAGS="$LDFLAGS"
+        # Yahan humne naam change karke Python ka official 32-bit naam (arm-linux-androideabi) daal diya hai
+        python3 Platforms/Android build arm-linux-androideabi -- LDFLAGS="$LDFLAGS"
 
     - name: Package 32-bit Embeddable Zip
       run: |
@@ -35,12 +35,12 @@ jobs:
         export ANDROID_HOME=$ANDROID_HOME
         
         echo "📦 Packaging 32-bit Zip 📦"
-        python3 Platforms/Android package armeabi-v7a
+        python3 Platforms/Android package arm-linux-androideabi
 
     - name: Upload 32-bit Python Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Official-Python-Android-armeabi-v7a
+        name: Official-Python-Android-32bit
         path: |
           cpython/*.zip
-          cpython/cross-build/armeabi-v7a/prefix/
+          cpython/cross-build/arm-linux-androideabi/prefix/
