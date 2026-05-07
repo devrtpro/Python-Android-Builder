@@ -1,15 +1,9 @@
-name: Build Official Python for Android
+name: Build Python 32-bit ONLY (From Code)
 on: [push, workflow_dispatch]
 
 jobs:
-  build:
+  build-32bit:
     runs-on: ubuntu-latest
-    # 🔥 ERROR FIXED: YAML array format theek kar diya gaya hai
-    strategy:
-      matrix:
-        arch:
-          - armeabi-v7a
-          - arm64-v8a
 
     steps:
     - name: Setup System Dependencies
@@ -17,36 +11,36 @@ jobs:
         sudo apt update
         sudo apt install -y build-essential pkg-config curl git unzip
 
-    - name: Checkout Official CPython Source
+    - name: Checkout Official CPython Source Code
       run: |
-        # Latest Python source code download kar rahe hain (Main branch)
+        # Yahan hum Python ka Original Source Code (.c aur .h files) download kar rahe hain
         git clone --depth 1 --branch main https://github.com/python/cpython.git
 
-    - name: Compile Python for ${{ matrix.arch }} (With 16KB Page Size)
+    - name: Compile Python ONLY for 32-bit (armeabi-v7a)
       run: |
         cd cpython
         export ANDROID_HOME=$ANDROID_HOME
         
-        # 🔥 16KB PAGE SIZE ALIGNMENT FOR ANDROID 15+ 🔥
+        # 🔥 16KB Page Size Alignment (Android 15+ aur Play Store ke naye rules ke liye) 🔥
         export LDFLAGS="-z max-page-size=16384"
         
-        echo "🔥 Building Python for ${{ matrix.arch }} 🔥"
-        # -- LDFLAGS="..." add kiya hai taake compiler ko 16KB ka pata ho
-        python3 Platforms/Android build ${{ matrix.arch }} -- LDFLAGS="$LDFLAGS"
+        echo "🔥 Compiling Python from Source Code for 32-bit 🔥"
+        
+        # Yeh command direct C source code ko 32-bit NDK ke zariye compile karegi
+        python3 Platforms/Android build armeabi-v7a -- LDFLAGS="$LDFLAGS"
 
-    - name: Package Embeddable Zip
+    - name: Package 32-bit Embeddable Zip
       run: |
         cd cpython
         export ANDROID_HOME=$ANDROID_HOME
         
-        echo "📦 Packaging ${{ matrix.arch }} 📦"
-        python3 Platforms/Android package ${{ matrix.arch }}
+        echo "📦 Packaging 32-bit Zip 📦"
+        python3 Platforms/Android package armeabi-v7a
 
-    - name: Upload Python Artifacts
+    - name: Upload 32-bit Python Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Official-Python-Android-${{ matrix.arch }}
-        # Yahan main dono cheezein utha raha hoon: Official Zip file aur raw folder
+        name: Official-Python-Android-armeabi-v7a
         path: |
           cpython/*.zip
-          cpython/cross-build/${{ matrix.arch }}/prefix/
+          cpython/cross-build/armeabi-v7a/prefix/
