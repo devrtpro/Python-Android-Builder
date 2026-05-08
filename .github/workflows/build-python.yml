@@ -1,5 +1,5 @@
 name: Build Python 32-bit ONLY (Final Optimized 20MB Size)
-on:[push, workflow_dispatch]
+on: [push, workflow_dispatch]
 
 jobs:
   build-32bit:
@@ -64,7 +64,6 @@ jobs:
         # Exact folder dhoondhna
         PREFIX_DIR=$(find . -type d -path "*/arm-linux-androideabi/prefix" | head -n 1)
         
-        # Space fix kiya gaya hai yahan
         if [ -n "$PREFIX_DIR" ]; then
           echo "✅ Cleaning up Directory: $PREFIX_DIR"
           
