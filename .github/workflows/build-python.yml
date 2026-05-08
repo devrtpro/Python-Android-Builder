@@ -68,7 +68,7 @@ jobs:
         
         PREFIX_DIR=$(find cross-build -type d -path "*/arm-linux-androideabi/prefix" | head -n 1)
         
-        if[ -n "$PREFIX_DIR" ]; then
+        if [ -n "$PREFIX_DIR" ]; then
           echo "✅ Cleaning up Directory: $PREFIX_DIR"
           
           # Yeh folders 30MB+ space khaate hain aur Android mein inka 0% kaam hai
