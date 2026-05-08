@@ -22,9 +22,9 @@ jobs:
         cd cpython
         
         # Script location automatically dhoondhne ke liye
-        if[ -d "Platforms/Android" ]; then
+        if [ -d "Platforms/Android" ]; then
             export ANDROID_CMD="python3 Platforms/Android"
-        elif[ -f "Android/android.py" ]; then
+        elif [ -f "Android/android.py" ]; then
             export ANDROID_CMD="python3 Android/android.py"
         elif [ -d "Android" ]; then
             export ANDROID_CMD="python3 Android"
