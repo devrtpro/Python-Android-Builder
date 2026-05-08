@@ -21,34 +21,31 @@ jobs:
       run: |
         cd cpython
         
-        # 💡 FIX: Bash Syntax Error Solved (Spaces added correctly)
-        # Smart Auto-Detector: Agar script ki location change hui ho toh ye khud dhoondh lega!
-        if[ -f "Android/android.py" ]; then
+        # Script location automatically dhoondhne ke liye
+        if [ -d "Platforms/Android" ]; then
+            export ANDROID_CMD="python3 Platforms/Android"
+        elif [ -f "Android/android.py" ]; then
             export ANDROID_CMD="python3 Android/android.py"
-        elif [ -f "Platforms/Android/android.py" ]; then
-            export ANDROID_CMD="python3 Platforms/Android/android.py"
+        elif [ -d "Android" ]; then
+            export ANDROID_CMD="python3 Android"
         else
-            SCRIPT_PATH=$(find . -name "android.py" | head -n 1)
-            if[ -z "$SCRIPT_PATH" ]; then
-                echo "❌ Error: Android build script (android.py) nahi mila!"
-                exit 1
-            fi
-            export ANDROID_CMD="python3 $SCRIPT_PATH"
+            echo "❌ Error: Android build scripts nahi milay!"
+            exit 1
         fi
         
-        echo "✅ Detected Android Build Script: $ANDROID_CMD"
+        echo "✅ Detected Android Build Script Command: $ANDROID_CMD"
 
         export ANDROID_HOME=$ANDROID_SDK_ROOT
         
         # 🔥 16KB Page Size Alignment (Android 15+ ke liye zaruri update) 🔥
         export LDFLAGS="-Wl,-z,max-page-size=16384"
         
-        # 💡 Bypassing Unsupported Modules explicitly taake aage ja ke koi lzma ya aisi library ka link error na aaye
+        # 💡 MAIN FIX: Jo libraries Android 32-bit ke C-compiler (NDK) mein available nahi hain
+        # unko hum officially bypass/disable kar rahe hain taake "unable to find library" ka error na aaye!
         export py_cv_module__lzma=n/a
         export py_cv_module__tkinter=n/a
         export py_cv_module__uuid=n/a
         export py_cv_module_nis=n/a
-        export py_cv_module__gdbm=n/a
         
         # Step 1: PC/Host Python ko configure karna
         echo "🔥 Step 1: Configuring Host Python 🔥"
@@ -60,7 +57,7 @@ jobs:
         
         # Step 3: Android 32-bit ko configure karna
         echo "🔥 Step 3: Configuring Android 32-bit Python 🔥"
-        $ANDROID_CMD configure-host arm-linux-androideabi
+        $ANDROID_CMD configure-host arm-linux-androideabi -- LDFLAGS="$LDFLAGS"
         
         # Step 4: Android 32-bit ko compile karna
         echo "🔥 Step 4: Compiling Android 32-bit Python 🔥"
@@ -70,14 +67,12 @@ jobs:
       run: |
         cd cpython
         
-        # Same Smart Detector for Packaging
-        if[ -f "Android/android.py" ]; then
+        if [ -d "Platforms/Android" ]; then
+            export ANDROID_CMD="python3 Platforms/Android"
+        elif [ -f "Android/android.py" ]; then
             export ANDROID_CMD="python3 Android/android.py"
-        elif[ -f "Platforms/Android/android.py" ]; then
-            export ANDROID_CMD="python3 Platforms/Android/android.py"
         else
-            SCRIPT_PATH=$(find . -name "android.py" | head -n 1)
-            export ANDROID_CMD="python3 $SCRIPT_PATH"
+            export ANDROID_CMD="python3 Android"
         fi
         
         export ANDROID_HOME=$ANDROID_SDK_ROOT
