@@ -1,5 +1,5 @@
-name: Build Python 32-bit ONLY (From Code)
-on: [push, workflow_dispatch]
+name: Build Python 32-bit ONLY (Optimized for Size)
+on:[push, workflow_dispatch]
 
 jobs:
   build-32bit:
@@ -10,7 +10,7 @@ jobs:
       run: |
         echo "⚙️ Setting up dependencies..."
         sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config curl git unzip default-jdk
+        sudo apt-get install -y build-essential pkg-config curl git unzip default-jdk llvm
 
     - name: Checkout Official CPython Source Code
       run: |
@@ -22,9 +22,9 @@ jobs:
         cd cpython
         
         # Script location automatically dhoondhne ke liye
-        if [ -d "Platforms/Android" ]; then
+        if[ -d "Platforms/Android" ]; then
             export ANDROID_CMD="python3 Platforms/Android"
-        elif [ -f "Android/android.py" ]; then
+        elif[ -f "Android/android.py" ]; then
             export ANDROID_CMD="python3 Android/android.py"
         elif [ -d "Android" ]; then
             export ANDROID_CMD="python3 Android"
@@ -37,31 +37,56 @@ jobs:
 
         export ANDROID_HOME=$ANDROID_SDK_ROOT
         
-        # 🔥 16KB Page Size Alignment (Android 15+ ke liye zaruri update) 🔥
-        export LDFLAGS="-Wl,-z,max-page-size=16384"
+        # 🔥 OPTIMIZATION: -Os (Optimize for Size) aur strip flags add kiye hain
+        export CFLAGS="-Os"
+        export LDFLAGS="-Wl,-z,max-page-size=16384 -Wl,--strip-all"
         
         # 💡 MAIN FIX: Jo libraries Android 32-bit ke C-compiler (NDK) mein available nahi hain
-        # unko hum officially bypass/disable kar rahe hain taake "unable to find library" ka error na aaye!
         export py_cv_module__lzma=n/a
         export py_cv_module__tkinter=n/a
         export py_cv_module__uuid=n/a
         export py_cv_module_nis=n/a
         
-        # Step 1: PC/Host Python ko configure karna
-        echo "🔥 Step 1: Configuring Host Python 🔥"
+        # Step 1 & 2: PC/Host Python
+        echo "🔥 Configuring and Building Host Python 🔥"
         $ANDROID_CMD configure-build
-        
-        # Step 2: PC/Host Python ko build karna
-        echo "🔥 Step 2: Building Host Python 🔥"
         $ANDROID_CMD make-build
         
-        # Step 3: Android 32-bit ko configure karna
-        echo "🔥 Step 3: Configuring Android 32-bit Python 🔥"
-        $ANDROID_CMD configure-host arm-linux-androideabi -- LDFLAGS="$LDFLAGS"
-        
-        # Step 4: Android 32-bit ko compile karna
-        echo "🔥 Step 4: Compiling Android 32-bit Python 🔥"
+        # Step 3 & 4: Android 32-bit Compilation
+        echo "🔥 Configuring and Compiling Android 32-bit Python 🔥"
+        $ANDROID_CMD configure-host arm-linux-androideabi -- CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS"
         $ANDROID_CMD make-host arm-linux-androideabi
+
+    - name: 🧹 Extreme Size Reduction & Cleanup
+      run: |
+        echo "✂️ Removing useless files and stripping debug symbols..."
+        # Prefix folder dhondhna jahan compiled files pari hain
+        PREFIX_DIR=$(find cpython/cross-build -type d -name "prefix" | head -n 1)
+        
+        if [ -z "$PREFIX_DIR" ]; then
+          echo "⚠️ Prefix directory not found, skipping cleanup!"
+        else
+          echo "✅ Found Prefix Dir: $PREFIX_DIR"
+          
+          # 1. REMOVE USELESS MODULES FOR ANDROID (Saves HUGE space)
+          rm -rf $PREFIX_DIR/lib/python3.*/test
+          rm -rf $PREFIX_DIR/lib/python3.*/idlelib
+          rm -rf $PREFIX_DIR/lib/python3.*/tkinter
+          rm -rf $PREFIX_DIR/lib/python3.*/turtledemo
+          rm -rf $PREFIX_DIR/lib/python3.*/pydoc_data
+          rm -rf $PREFIX_DIR/lib/python3.*/ensurepip
+
+          # 2. STRIP .SO FILES (Crypto, Math, vagerah ki files ka size bohot kam kar dega)
+          find $PREFIX_DIR -name "*.so" -exec llvm-strip --strip-unneeded {} + || true
+          find $PREFIX_DIR/bin -type f -executable -exec llvm-strip --strip-all {} + || true
+          
+          # 3. COMPILE TO .PYC AND DELETE .PY FILES (Like Official Embeddable Python)
+          python3 -m compileall -b -o 1 -o 2 $PREFIX_DIR/lib/python3.*
+          find $PREFIX_DIR/lib/python3.* -name "*.py" -delete
+          find $PREFIX_DIR/lib/python3.* -name "__pycache__" -exec rm -rf {} + || true
+          
+          echo "✅ Size Reduction Complete!"
+        fi
 
     - name: Package 32-bit Embeddable Zip
       run: |
@@ -88,7 +113,7 @@ jobs:
     - name: Upload 32-bit Python Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Official-Python-Android-32bit
+        name: Official-Python-Android-32bit-Optimized
         path: |
           cpython/*.zip
           cpython/cross-build/arm-linux-androideabi/prefix/
