@@ -8,45 +8,82 @@ jobs:
     steps:
     - name: Setup System Dependencies
       run: |
-        sudo apt update
-        sudo apt install -y build-essential pkg-config curl git unzip
+        echo "⚙️ Setting up dependencies..."
+        sudo apt-get update
+        # Java (default-jdk) zaroori hai Android SDK Manager ke liye
+        sudo apt-get install -y build-essential pkg-config curl git unzip default-jdk
 
-    - name: Checkout Official CPython Source Code (STABLE 3.14)
+    - name: Checkout Official CPython Source Code
       run: |
-        # 🔥 MAIN FIX: 'main' ki jagah hum '3.14' stable branch use kar rahe hain
-        git clone --depth 1 --branch 3.14 https://github.com/python/cpython.git
+        echo "📥 Downloading CPython Source Code..."
+        # 🔥 FIX: Hum 3.14 branch try karenge, agar wo available nahi hui toh main (latest) ko fetch kar lega taake script fail na ho.
+        git clone --depth 1 --branch 3.14 https://github.com/python/cpython.git || git clone --depth 1 https://github.com/python/cpython.git
 
     - name: Compile Python ONLY for 32-bit (arm-linux-androideabi)
       run: |
         cd cpython
-        export ANDROID_HOME=$ANDROID_HOME
+        
+        # 💡 MAIN ADVANCED FIX: CPython versions mein Android script ka path badalta rehta hai. 
+        # Hum dynamically detect karenge taake "No such file or directory" wala error kabhi na aaye!
+        if [ -d "Platforms/Android" ]; then
+            export ANDROID_CMD="python3 Platforms/Android"
+        elif [ -f "Android/android.py" ]; then
+            export ANDROID_CMD="python3 Android/android.py"
+        elif [ -d "Android" ]; then
+            export ANDROID_CMD="python3 Android"
+        else
+            echo "❌ Error: Android build scripts nahi milay! CPython repo structure check karein."
+            exit 1
+        fi
+        
+        echo "✅ Detected Android Build Script Command: $ANDROID_CMD"
+
+        # GitHub Actions mein ANDROID_SDK_ROOT pehle se configure hota hai
+        export ANDROID_HOME=$ANDROID_SDK_ROOT
         
         # 🔥 16KB Page Size Alignment (Android 15+ ke liye zaruri update) 🔥
-        export LDFLAGS="-z max-page-size=16384"
+        # Linker (-Wl) ke format mein pass karna zyada safe aur official tareeqa hai.
+        export LDFLAGS="-Wl,-z,max-page-size=16384"
         
         # Step 1: PC/Host Python ko configure karna
         echo "🔥 Step 1: Configuring Host Python 🔥"
-        python3 Platforms/Android configure-build
+        $ANDROID_CMD configure-build
         
         # Step 2: PC/Host Python ko build karna
         echo "🔥 Step 2: Building Host Python 🔥"
-        python3 Platforms/Android make-build
+        $ANDROID_CMD make-build
         
         # Step 3: Android 32-bit ko configure karna (With 16KB update)
         echo "🔥 Step 3: Configuring Android 32-bit Python 🔥"
-        python3 Platforms/Android configure-host arm-linux-androideabi -- LDFLAGS="$LDFLAGS"
+        $ANDROID_CMD configure-host arm-linux-androideabi -- LDFLAGS="$LDFLAGS"
         
         # Step 4: Android 32-bit ko compile karna
         echo "🔥 Step 4: Compiling Android 32-bit Python 🔥"
-        python3 Platforms/Android make-host arm-linux-androideabi
+        $ANDROID_CMD make-host arm-linux-androideabi
 
     - name: Package 32-bit Embeddable Zip
       run: |
         cd cpython
-        export ANDROID_HOME=$ANDROID_HOME
+        
+        # Same path detection logic packaging ke liye
+        if [ -d "Platforms/Android" ]; then
+            export ANDROID_CMD="python3 Platforms/Android"
+        elif [ -f "Android/android.py" ]; then
+            export ANDROID_CMD="python3 Android/android.py"
+        else
+            export ANDROID_CMD="python3 Android"
+        fi
+        
+        export ANDROID_HOME=$ANDROID_SDK_ROOT
         
         echo "📦 Packaging 32-bit Zip (Official Way) 📦"
-        python3 Platforms/Android package arm-linux-androideabi
+        # Kuch versions mein architecture argument chahiye hota hai aur kuch mein nahi, toh hum donon try kar rahe hain.
+        if $ANDROID_CMD package arm-linux-androideabi; then
+            echo "✅ Packaged successfully with architecture flag!"
+        else
+            echo "⚠️ Retrying packaging without architecture flag..."
+            $ANDROID_CMD package
+        fi
 
     - name: Upload 32-bit Python Artifact
       uses: actions/upload-artifact@v4
