@@ -10,40 +10,42 @@ jobs:
       run: |
         echo "⚙️ Setting up dependencies..."
         sudo apt-get update
-        # Java (default-jdk) zaroori hai Android SDK Manager ke liye
         sudo apt-get install -y build-essential pkg-config curl git unzip default-jdk
 
     - name: Checkout Official CPython Source Code
       run: |
-        echo "📥 Downloading CPython Source Code..."
-        # 🔥 FIX: Hum 3.14 branch try karenge, agar wo available nahi hui toh main (latest) ko fetch kar lega taake script fail na ho.
+        echo "📥 Downloading CPython Source Code (STABLE 3.14)..."
         git clone --depth 1 --branch 3.14 https://github.com/python/cpython.git || git clone --depth 1 https://github.com/python/cpython.git
 
     - name: Compile Python ONLY for 32-bit (arm-linux-androideabi)
       run: |
         cd cpython
         
-        # 💡 MAIN ADVANCED FIX: CPython versions mein Android script ka path badalta rehta hai. 
-        # Hum dynamically detect karenge taake "No such file or directory" wala error kabhi na aaye!
-        if [ -d "Platforms/Android" ]; then
+        # Script location automatically dhoondhne ke liye
+        if[ -d "Platforms/Android" ]; then
             export ANDROID_CMD="python3 Platforms/Android"
-        elif [ -f "Android/android.py" ]; then
+        elif[ -f "Android/android.py" ]; then
             export ANDROID_CMD="python3 Android/android.py"
         elif [ -d "Android" ]; then
             export ANDROID_CMD="python3 Android"
         else
-            echo "❌ Error: Android build scripts nahi milay! CPython repo structure check karein."
+            echo "❌ Error: Android build scripts nahi milay!"
             exit 1
         fi
         
         echo "✅ Detected Android Build Script Command: $ANDROID_CMD"
 
-        # GitHub Actions mein ANDROID_SDK_ROOT pehle se configure hota hai
         export ANDROID_HOME=$ANDROID_SDK_ROOT
         
         # 🔥 16KB Page Size Alignment (Android 15+ ke liye zaruri update) 🔥
-        # Linker (-Wl) ke format mein pass karna zyada safe aur official tareeqa hai.
         export LDFLAGS="-Wl,-z,max-page-size=16384"
+        
+        # 💡 MAIN FIX: Jo libraries Android 32-bit ke C-compiler (NDK) mein available nahi hain
+        # unko hum officially bypass/disable kar rahe hain taake "unable to find library" ka error na aaye!
+        export py_cv_module__lzma=n/a
+        export py_cv_module__tkinter=n/a
+        export py_cv_module__uuid=n/a
+        export py_cv_module_nis=n/a
         
         # Step 1: PC/Host Python ko configure karna
         echo "🔥 Step 1: Configuring Host Python 🔥"
@@ -53,7 +55,7 @@ jobs:
         echo "🔥 Step 2: Building Host Python 🔥"
         $ANDROID_CMD make-build
         
-        # Step 3: Android 32-bit ko configure karna (With 16KB update)
+        # Step 3: Android 32-bit ko configure karna
         echo "🔥 Step 3: Configuring Android 32-bit Python 🔥"
         $ANDROID_CMD configure-host arm-linux-androideabi -- LDFLAGS="$LDFLAGS"
         
@@ -65,8 +67,7 @@ jobs:
       run: |
         cd cpython
         
-        # Same path detection logic packaging ke liye
-        if [ -d "Platforms/Android" ]; then
+        if[ -d "Platforms/Android" ]; then
             export ANDROID_CMD="python3 Platforms/Android"
         elif [ -f "Android/android.py" ]; then
             export ANDROID_CMD="python3 Android/android.py"
@@ -77,7 +78,6 @@ jobs:
         export ANDROID_HOME=$ANDROID_SDK_ROOT
         
         echo "📦 Packaging 32-bit Zip (Official Way) 📦"
-        # Kuch versions mein architecture argument chahiye hota hai aur kuch mein nahi, toh hum donon try kar rahe hain.
         if $ANDROID_CMD package arm-linux-androideabi; then
             echo "✅ Packaged successfully with architecture flag!"
         else
